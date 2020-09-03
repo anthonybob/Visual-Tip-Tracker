@@ -1,2 +1,6 @@
 # Visual-Tip-Tracker
-Generated Heat Map of Tip Averages
+Data Visualizations of Delivery and Tip Information
+Predictions for tip amounts using ML
+
+Data is redacted for privacy purposes.
+(Examples will be supplied)
