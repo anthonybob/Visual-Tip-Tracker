@@ -6,10 +6,10 @@ from os import path
 import time
 
 #sets center
-center = [45, -122]
+center = [45.505372, -122.475917]
 
 #get API key
-gmapskey = Client(key='API_KEY')
+gmapskey = Client(key='AIzaSyCqRs4Fb4sY74l52iOjEedBhjt2cKb00L8')
 	
 #takes deliveries dataframe, adds features recursively
 #starting from a given row, returns new df with 
@@ -18,8 +18,14 @@ def extractfeatures(deliveries, row):
 
 	#stop condition, stops at end of dataframe and returns
 	if row >= (len(deliveries)): return deliveries
-	
-	
+		
+	#calculates tip
+	deliveries.loc[row, 
+		'tip'] = deliveries.loc[row, 'paid'] - deliveries.loc[row, 'total']
+
+	#calculates tipPercent
+	deliveries.loc[row, 
+		'tipPercent'] = (deliveries.loc[row,'tip'] / deliveries.loc[row,'total'])
 	print("Geocoding " + deliveries.loc[row, 'address'] + " # " + str(row + 1)
 		+ "/" + str(len(deliveries)))
 
@@ -36,19 +42,12 @@ def extractfeatures(deliveries, row):
 		print("Error.")
 		print(geocode_result)
 
-	#calculates tip
-	deliveries.loc[row, 
-		'tip'] = deliveries.loc[row, 'paid'] - deliveries.loc[row, 'total']
-
-	#calculates tipPercent
-	deliveries.loc[row, 
-		'tipPercent'] = (deliveries.loc[row,'tip'] / deliveries.loc[row,'total'])
-
 	#converts date to datetime obj and adds date/time features to df
 	date = pd.to_datetime(deliveries.loc[row, 'date'] + '-' + 
-		deliveries.loc[row, 'time'], format='%Y-%m-%d-%H:%M')
-	deliveries.loc[row, 'dayofweek'] = date.weekday()
+		deliveries.loc[row, 'time'], format='%Y-%m-%d-%H:%M')	
+	deliveries.loc[row, 'dayofyear'] = date.dayofyear
 	deliveries.loc[row, 'dayofmonth'] = date.day
+	deliveries.loc[row, 'dayofweek'] = date.weekday
 	deliveries.loc[row, 'month'] = date.month
 	if date.hour == 0: deliveries.loc[row, 'hour'] = 24
 	else: deliveries.loc[row, 'hour'] = date.hour
