@@ -6,70 +6,63 @@ import requests
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-newdeliveries = pd.read_csv('featuredata.csv')
-deliveries = pd.read_csv('deliveries.csv')
+@st.cache
+def loaddata():
+	return pd.read_csv('featuredata.csv')
 
-center=[45.505372,-122.475917]
-bounds = [newdeliveries['latitude'].min(), newdeliveries['longitude'].max(), 
-          newdeliveries['latitude'].max(), newdeliveries['longitude'].min()]
+def loadcontent():
+	st.title('Tip Tracking and Predicting')
 
-COLOR_BREWER_BLUE_SCALE = [
-    [240, 249, 232],
-    [204, 235, 197],
-    [168, 221, 181],
-    [123, 204, 196],
-    [67, 162, 202],
-    [8, 104, 172],
-]
+	center=[45.505372,-122.475917]
 
-coords = newdeliveries[['latitude', 'longitude']]
+	COLOR_BREWER_BLUE_SCALE = [
+	    [240, 249, 232],
+	    [204, 235, 197],
+	    [168, 221, 181],
+	    [123, 204, 196],
+	    [67, 162, 202],
+	    [8, 104, 172],
+	]
 
-st.pydeck_chart(pdk.Deck(
-	map_style='mapbox://styles/mapbox/light-v9',
-    initial_view_state=pdk.ViewState(
-		latitude=center[0],
-        longitude=center[1],
-        zoom=11,
-        pitch=50,
-    ),
-    layers=[
-        pdk.Layer(
-			'HexagonLayer',
-            data=newdeliveries,
-            get_position=['longitude', 'latitude'],
-            radius=200,
-            elevation_scale=4,
-            elevation_range=[0, 1000],
-			get_elevation='tipPercent * 1000',
-            pickable=True,
-            extruded=True,
-		),
-        pdk.Layer(
-            'ScatterplotLayer',
-            data=newdeliveries,
-            get_position=['longitude', 'latitude'],
-            get_color='[200, 30, 0, 160]',
-            get_radius=200,
-         ),
-     ],
-))
+	featuredata = loaddata()
+	st.subheader("Average Tips Heatmaps")
+	showHeatmap(featuredata, COLOR_BREWER_BLUE_SCALE)
+	showHeatmap(featuredata, COLOR_BREWER_BLUE_SCALE, filter_by='dayofyear')
+	showHeatmap(featuredata, COLOR_BREWER_BLUE_SCALE, filter_by='dayofweek')
 
+def showHeatmap(data, color_gradient, filter_by=None):
+	if(filter_by != None):
+		filter_val = st.slider(
+			str('Tips from the ' + str(data[filter_by].min()) + ' ' + filter_by +
+				" to the " + str(data[filter_by].max()) + ' ' + filter_by), 
+			int(data[filter_by].min()), int(data[filter_by].max()))
 
-view = pdk.data_utils.compute_view(newdeliveries[["longitude", "latitude"]])
-view.zoom = 11
+		filtereddata = data[data[filter_by]  == filter_val]
 
-st.pydeck_chart(pdk.Deck(
-	layers = [pdk.Layer(
- 	   "HeatmapLayer",
- 	   data=newdeliveries,
- 	   opacity=0.8,
- 	   get_position=["longitude", "latitude"],
- 	   aggregation='"MEAN"',
- 	   color_range=COLOR_BREWER_BLUE_SCALE,
- 	   threshold=.3,
- 	   get_weight="tipPercent * 100",
- 	   pickable=True,
-	)],
+	else: filtereddata = data
 
-	initial_view_state=view
-))
+	if(len(filtereddata) == 0):
+		st.write("No Data for this day.")
+	else:
+
+		view = pdk.data_utils.compute_view(filtereddata[["longitude", "latitude"]])
+		view.zoom = 11
+	
+		st.pydeck_chart(pdk.Deck(
+			layers = [pdk.Layer(
+		 	   "HeatmapLayer",
+		 	   data=filtereddata,
+		 	   opacity=0.8,
+		 	   get_position=["longitude", "latitude"],
+		 	   aggregation='"MEAN"',
+		 	   color_range=color_gradient,
+		 	   threshold=.3,
+		 	   get_weight="tip * 100",
+		 	   pickable=True,
+			)], 
+			initial_view_state=view))
+	
+def datetime_converter(date, time):
+     return pd.to_datetime(date + '-' + time, format='%Y-%m-%d-%H:%M')
+
+loadcontent()
