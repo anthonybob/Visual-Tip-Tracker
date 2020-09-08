@@ -9,7 +9,7 @@ import time
 center = [45.505372, -122.475917]
 
 #get API key
-gmapskey = Client(key='AIzaSyCqRs4Fb4sY74l52iOjEedBhjt2cKb00L8')
+gmapskey = Client(key='API-KEY')
 	
 #takes deliveries dataframe, adds features recursively
 #starting from a given row, returns new df with 
