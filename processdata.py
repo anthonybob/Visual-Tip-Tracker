@@ -5,63 +5,67 @@ from datetime import datetime
 from os import path
 import time
 
+weatherdata = pd.read_csv('weatherdata.csv')
+
 #sets center
 center = [45.505372, -122.475917]
 
 #get API key
-gmapskey = Client(key='API-KEY')
+gmapskey = Client(key='API_KEY')
 	
 #takes deliveries dataframe, adds features recursively
 #starting from a given row, returns new df with 
 #latitude, longitude, tip, tipPercent, dayofweek, dayofmonth, month
-def extractfeatures(deliveries, row):	
+def extractFeatures(deliveries):		
 
-	#stop condition, stops at end of dataframe and returns
-	if row >= (len(deliveries)): return deliveries
-		
 	#calculates tip
-	deliveries.loc[row, 
-		'tip'] = deliveries.loc[row, 'paid'] - deliveries.loc[row, 'total']
+	deliveries['tip'] = deliveries['paid'] - deliveries['total']
 
 	#calculates tipPercent
-	deliveries.loc[row, 
-		'tipPercent'] = (deliveries.loc[row,'tip'] / deliveries.loc[row,'total'])
-	print("Geocoding " + deliveries.loc[row, 'address'] + " # " + str(row + 1)
-		+ "/" + str(len(deliveries)))
-
-	#uses google geocoding api to get latitude, longitude of entry
-	geocode_result = gmapskey.geocode(deliveries.loc[row, 'address'])
-
-	#adds lat and lng to dataframe
-	try:
-		deliveries.loc[row, 
-			'latitude'] = geocode_result[0]['geometry']['location']['lat']
-		deliveries.loc[row, 
-			'longitude'] = geocode_result[0]['geometry']['location']['lng']
-	except:
-		print("Error.")
-		print(geocode_result)
+	deliveries['tipPercent'] = deliveries['tip'] / deliveries['total']
 
 	#converts date to datetime obj and adds date/time features to df
-	date = pd.to_datetime(deliveries.loc[row, 'date'] + '-' + 
-		deliveries.loc[row, 'time'], format='%Y-%m-%d-%H:%M')	
-	deliveries.loc[row, 'dayofyear'] = date.dayofyear
-	deliveries.loc[row, 'dayofmonth'] = date.day
-	deliveries.loc[row, 'dayofweek'] = date.weekday
-	deliveries.loc[row, 'month'] = date.month
-	if date.hour == 0: deliveries.loc[row, 'hour'] = 24
-	else: deliveries.loc[row, 'hour'] = date.hour
+	dates = pd.to_datetime(deliveries['date'] + '-' + 
+		deliveries['time'], format='%Y-%m-%d-%H:%M')	
+	deliveries['dayofyear'] = dates.dt.dayofyear
+	deliveries['dayofmonth'] = dates.dt.day
+	deliveries['dayofweek'] = dates.dt.weekday
+	deliveries['month'] = dates.dt.month
+	deliveries['hour'] = dates.dt.hour
 
 	#extract weather features
-	deliveries.loc[row, 'prcp'] = extract_precipitation(deliveries.loc[row, 'date'])
+	deliveries['prcp'] = deliveries['date'].apply(extractPrecipitation)
+
+	#applies geocode function to get lat and long
+	deliveries['latitude'], deliveries['longitude'] = zip(
+		*deliveries['address'].apply(extractCoords))
+	
+	#gets zip code from address
+	deliveries['zip'] = deliveries['address'].apply(
+		lambda address: int(address[-5:]))
+
+	return deliveries
+
+def extractCoords(address):
+	print("Geocoding " + address)
+
+	#uses google geocoding api to get latitude, longitude of entry
+	geocode_result = gmapskey.geocode(address)
 
 	#set quota limit (google has a limit of 50 requests/sec)
 	time.sleep(.05)
 
-	#recursive call to continue down the dataframe
-	return extractfeatures(deliveries, row + 1)
+	#adds lat and lng to dataframe
+	try:
+		latitude = geocode_result[0]['geometry']['location']['lat']
+		longitude = geocode_result[0]['geometry']['location']['lng']
+	except:
+		print("Error.")
+		print(geocode_result)		
+		return 0, 0
+	return latitude, longitude
 
-def extract_precipitation(date):
+def extractPrecipitation(date):
     dateweather = weatherdata[weatherdata['DATE'] == date]
     closestreport = np.sqrt(((dateweather['LATITUDE'] - center[0])**2) + 
 		((dateweather['LONGITUDE'] - center[1])**2))
@@ -69,30 +73,25 @@ def extract_precipitation(date):
 	
 #creates/updates featuredata.csv from original deliveries.csv
 #calls extractfeatures(), returns a dataframe w/ extracted features
-def updatedeliveries():
-	if path.exists('deliveries.csv'): 
+def processData(filename):
+	if path.exists(filename): 
 		print("Getting Coordinates...")
 		print("This may take a minute, so grab a cup of tea.")
 
-		deliveries = pd.read_csv('deliveries.csv')
+		data = pd.read_csv(filename)
 
 		#checks if some feature data already exists
 		if path.exists('featuredata.csv'): 
 			featuredata = pd.read_csv('featuredata.csv')
 
 			#checks if featuredata needs to be updated
-			if len(featuredata) < len(deliveries):
+			if len(featuredata) < len(data):
 				
 				#concatenates new deliveries and calls extractfeatures()
-				deliveries = pd.concat([featuredata, 
-					deliveries[len(featuredata):]], axis=0)
-				return extractfeatures(deliveries, len(featuredata))
+				return pd.concat([featuredata,
+					extractFeatures(data[len(featuredata):])], axis=0)
 
 			return featuredata #returns if theres nothing to update
 
-		return extractfeatures(deliveries, 0)
+		return extractFeatures(data)
 	return
-
-weatherdata = pd.read_csv('weatherdata.csv')
-updatedeliveries().to_csv('featuredata.csv', index=False)
-print('Updated Feature Data.')
