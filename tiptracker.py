@@ -5,10 +5,14 @@ import numpy as np
 import requests
 import seaborn as sns
 import matplotlib.pyplot as plt
+import processdata
 
 @st.cache
-def loaddata():
-	return pd.read_csv('featuredata.csv')
+def loaddata():	
+	featuredata = processdata.processData('deliveries.csv')
+	featuredata.to_csv('featuredata.csv', index=False)
+	print('Updated Feature Data.')
+	return featuredata
 
 def loadcontent():
 	st.title('Tip Tracking and Predicting')
@@ -27,8 +31,16 @@ def loadcontent():
 	featuredata = loaddata()
 	st.subheader("Average Tips Heatmaps")
 	showHeatmap(featuredata, COLOR_BREWER_BLUE_SCALE)
-	showHeatmap(featuredata, COLOR_BREWER_BLUE_SCALE, filter_by='dayofyear')
 	showHeatmap(featuredata, COLOR_BREWER_BLUE_SCALE, filter_by='dayofweek')
+	showHeatmap(featuredata, COLOR_BREWER_BLUE_SCALE, filter_by='dayofyear')
+	showPlots(featuredata, filter_by='hour')
+	showPlots(featuredata, filter_by='dayofweek')
+	showPlots(featuredata, filter_by='month')
+
+def showPlots(data, filter_by=None):
+	filtereddata = data.groupby(filter_by).mean()	
+	sns.barplot(x=filtereddata.index, y=filtereddata['tipPercent'])
+	st.pyplot()
 
 def showHeatmap(data, color_gradient, filter_by=None):
 	if(filter_by != None):

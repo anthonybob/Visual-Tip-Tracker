@@ -31,7 +31,7 @@ def extractFeatures(deliveries):
 	deliveries['dayofmonth'] = dates.dt.day
 	deliveries['dayofweek'] = dates.dt.weekday
 	deliveries['month'] = dates.dt.month
-	deliveries['hour'] = dates.dt.hour
+	deliveries['hour'] = dates.dt.hour.apply(lambda time: 24 if time == 0 else time)
 
 	#extract weather features
 	deliveries['prcp'] = deliveries['date'].apply(extractPrecipitation)
