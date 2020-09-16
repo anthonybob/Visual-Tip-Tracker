@@ -73,25 +73,5 @@ def extractPrecipitation(date):
 	
 #creates/updates featuredata.csv from original deliveries.csv
 #calls extractfeatures(), returns a dataframe w/ extracted features
-def processData(filename):
-	if path.exists(filename): 
-		print("Getting Coordinates...")
-		print("This may take a minute, so grab a cup of tea.")
-
-		data = pd.read_csv(filename)
-
-		#checks if some feature data already exists
-		if path.exists('featuredata.csv'): 
-			featuredata = pd.read_csv('featuredata.csv')
-
-			#checks if featuredata needs to be updated
-			if len(featuredata) < len(data):
-				
-				#concatenates new deliveries and calls extractfeatures()
-				return pd.concat([featuredata,
-					extractFeatures(data[len(featuredata):])], axis=0)
-
-			return featuredata #returns if theres nothing to update
-
-		return extractFeatures(data)
-	return
+def processData(data):
+	return extractFeatures(data)
