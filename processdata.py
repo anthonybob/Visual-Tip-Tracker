@@ -1,5 +1,4 @@
 from googlemaps import Client
-import numpy as np
 import pandas as pd
 from datetime import datetime
 from os import path
@@ -9,14 +8,11 @@ weatherdata = pd.read_csv('weatherdata.csv')
 
 #sets center
 center = [45.505372, -122.475917]
-
-#get API key
-gmapskey = Client(key='API_KEY')
 	
 #takes deliveries dataframe, adds features recursively
 #starting from a given row, returns new df with 
 #latitude, longitude, tip, tipPercent, dayofweek, dayofmonth, month
-def extractFeatures(deliveries):		
+def extractFeatures(deliveries, api_key):		
 
 	#calculates tip
 	deliveries['tip'] = deliveries['paid'] - deliveries['total']
@@ -33,20 +29,20 @@ def extractFeatures(deliveries):
 	deliveries['month'] = dates.dt.month
 	deliveries['hour'] = dates.dt.hour.apply(lambda time: 24 if time == 0 else time)
 
-	#extract weather features
-	deliveries['prcp'] = deliveries['date'].apply(extractPrecipitation)
-
+	
+	#get API key
+	gmapskey = Client(key=api_key)
 	#applies geocode function to get lat and long
 	deliveries['latitude'], deliveries['longitude'] = zip(
-		*deliveries['address'].apply(extractCoords))
+		*deliveries['address'].apply(extractCoords, kwargs=(api_key,)))
 	
 	#gets zip code from address
 	deliveries['zip'] = deliveries['address'].apply(
-		lambda address: int(address[-5:]))
+		lambda address: int(address.split()[-1]))
 
 	return deliveries
 
-def extractCoords(address):
+def extractCoords(address, gmapskey):
 	print("Geocoding " + address)
 
 	#uses google geocoding api to get latitude, longitude of entry
@@ -73,5 +69,15 @@ def extractPrecipitation(date):
 	
 #creates/updates featuredata.csv from original deliveries.csv
 #calls extractfeatures(), returns a dataframe w/ extracted features
-def processData(data):
-	return extractFeatures(data)
+def processData(data, api_key):
+	if path.exists('featuredata.csv'):
+		featuredata = pd.read_csv('featuredata.csv')
+		if(len(featuredata) < len(data)):
+			deliveries = pd.concat([featuredata,
+				extractFeatures(data.loc[len(featuredata):, :], api_key)],
+				axis=0)
+		else: return featuredata
+	else: deliveries = extractFeatures(data, api_key)
+
+	deliveries.to_csv('featuredata.csv', index=False)
+	return deliveries 
