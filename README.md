@@ -4,4 +4,6 @@ Predictions for tip amounts using ML
 
 Data is redacted for privacy purposes.
 (Examples will be supplied)
-![Heatmaps Example](screenshot.png)
+![Heatmap Ex.](screenshot.png)
+![Data Visual Ex.](screenshot2.png)
+![Data Visual Ex.](screenshot3.png)
